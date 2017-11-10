@@ -1,0 +1,186 @@
+<?php
+
+/**
+ * Teams node access module
+ *
+ * @file
+ */
+
+/**
+ * Node access hook used with Teams api to set node level access for teams
+ */
+function teams_nodes_node_access($node, $op, $account) {
+
+  // Node access gets called multiple times on a single page,
+  // to make sure we have the correct node for this page check for a $node->nid
+  if (isset($node->nid) && $op === 'update') {
+
+    // Check that the Teams module exists before running api
+    if (module_exists('teams')) {
+
+      // Get the teams that have access rights to this node
+      $node_teams_access = db_select('teams_nodes', 'ton')
+        ->fields('ton', array('nid', 'team_id'))
+        ->condition('ton.nid', $node->nid, '=')
+        ->execute()
+        ->fetchAll();
+
+      // Check user has correct permissions to edit node
+      $permission = teams_has_permission($node_teams_access);
+
+      if ($permission === FALSE) {
+        return NODE_ACCESS_DENY;
+      }
+
+    }
+    else{
+      drupal_set_message('Error calling Teams api.', 'error');
+    }
+
+  }
+
+}
+
+
+/**
+ * Teams Node form alter used to integrate ownership into admin display
+ */
+function teams_nodes_form_node_form_alter(&$form, &$form_state, $form_id) {
+
+  // Get list of all teams
+  $teams = teams_get_teams();
+
+  // Create array to hold team names
+  $teams_names = array();
+
+  // Create checkboxes array using $team_names array
+  foreach ($teams as $team) {
+    $teams_names[$team['team_id']] = $team['name'];
+  }
+
+  // Get the teams that have access rights to this node
+  $node_teams_access = db_select('teams_nodes', 'ton')
+    ->fields('ton', array('nid', 'team_id'))
+    ->condition('ton.nid', $form['nid']['#value'], '=')
+    ->execute()
+    ->fetchAll();
+
+  // Create and populate array to hold all teams that have access to current node for pre select
+  $default_checked_teams = array();
+  foreach ($node_teams_access as $node_team) {
+    if (isset($teams_names[$node_team->team_id])) {
+      $default_checked_teams[] = $node_team->team_id;
+    }
+  }
+
+
+  // Check for add new form using nid
+  // before adding teams field to form
+  if (!isset($form['nid']['#value']) && isset($teams)) {
+
+    // Add team select options to node add/edit admin pages
+    $form['teams_nodes_team_select'] = array(
+      '#type' => 'fieldset',
+      '#title' => t('Teams'),
+      '#description' => '<h2>Teams</h2><p><strong>Select the teams that will have access to this content:</strong></p>',
+      '#collapsible' => TRUE,
+      '#collapsed' => FALSE,
+      '#group' => 'additional_settings',
+      '#weight' => -1000,
+    );
+
+    // Add teams display to form
+    $form['teams_nodes_team_select']['teams'] = array(
+      '#type' => 'checkboxes',
+      '#title' => t('Teams'),
+      '#options' => $teams_names,
+      '#default_value' => $default_checked_teams,
+      '#required' => TRUE,
+    );
+
+    // Disable all teams that you are not apart of and should not be able to select
+    foreach ($teams as $team) {
+      if (!in_array($team['team_id'], teams_get_user_teams())) {
+        $form['teams_nodes_team_select']['teams'][$team['team_id']]['#disabled'] = TRUE;
+      }
+    }
+
+    // On add node form submit create handler
+    // Note: using $form['actions']['submit']['#submit'][] will give you the nid on submit
+    // The standard $form['#submit'] will not return nid on submit
+    $form['actions']['submit']['#submit'][] = 'new_node_form_submit_handler';
+
+  }
+  // On edit form, display teams that own content without edit ability
+  elseif (isset($form['nid']['#value']) && isset($teams)) {
+
+    // Attach teams display to form as content
+    $form['teams_nodes_team_select'] = array(
+      '#type' => 'fieldset',
+      '#title' => t('Teams'),
+      '#description' => '<h2>Teams</h2><p><strong>Current teams with access:</strong></p>',
+      '#collapsible' => TRUE,
+      '#collapsed' => FALSE,
+      '#group' => 'additional_settings',
+      '#weight' => -1000,
+    );
+
+    // Add teams display to form
+    $form['teams_nodes_team_select']['teams'] = array(
+      '#type' => 'checkboxes',
+      '#title' => t('Teams'),
+      '#options' => $teams_names,
+      '#default_value' => $default_checked_teams,
+      '#required' => FALSE,
+    );
+
+    // Disable all teams select editing ability
+    foreach ($teams as $team) {
+      $form['teams_nodes_team_select']['teams'][$team['team_id']]['#disabled'] = TRUE;
+    }
+
+  }
+
+}
+
+
+/**
+ * On node form submit
+ */
+function new_node_form_submit_handler(&$form, &$form_state) {
+
+  // On new node form submit add selected teams to node access array
+  $selected_teams = array();
+  foreach ($form_state['values']['teams'] as $team) {
+
+    // Make sure values have been selected before adding to array
+    if ($team !== 0) {
+      $selected_teams[$team]['nid'] = $form_state['node']->nid;
+      $selected_teams[$team]['team_id'] = $team;
+      $selected_teams[$team]['modified'] = REQUEST_TIME;
+      $selected_teams[$team]['created'] = REQUEST_TIME;
+    }
+
+  }
+
+  // Insert new node team access permissions into teams_nodes
+  $query = db_insert('teams_nodes')->fields(array('nid', 'team_id', 'modified', 'created'));
+  foreach ($selected_teams as $record) {
+    $query->values($record);
+  }
+  $query->execute();
+
+}
+
+
+/**
+ * On node delete clean up custom database tables
+ */
+function teams_nodes_delete($node) {
+
+  // Remove all references to deleted node in teams_nodes table
+  db_delete('teams_nodes')
+    ->condition('nid', $node->nid)
+    ->execute();
+
+}

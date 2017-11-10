@@ -1,0 +1,6 @@
+name = Teams Nodes
+description = Controls node access for Teams.
+core = 7.x
+package = Teams
+
+dependencies[] = teams

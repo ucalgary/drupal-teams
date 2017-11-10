@@ -1,0 +1,76 @@
+<?php
+
+/**
+ * Teams node module schema, install, update and uninstall file
+ *
+ * @file
+ */
+
+ /**
+  * Create database schema for Teams Node Access
+  * @return array
+  */
+function teams_node_schema() {
+
+  // Create the node instance table to manage node team access
+  $schema['teams_nodes'] = array(
+    'description' => 'Table used to manage team node instance access.',
+    'fields' => array(
+      'content_id' => array(
+        'description' => 'The primary identifier for a node stored in Teams.',
+        'type' => 'serial',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+      ),
+      'nid' => array(
+        'description' => 'The reference to the actual node in drupal (nid).',
+        'type' => 'int',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+        'default' => 0,
+      ),
+      'team_id' => array(
+        'description' => 'The team_id for node instance access.',
+        'type' => 'varchar',
+        'length' => 100,
+        'not null' => TRUE,
+      ),
+      'modified' => array(
+        'description' => 'The last time a node instance ownership was modified.',
+        'type' => 'int',
+        'not null' => TRUE,
+        'default' => 0,
+      ),
+      'created' => array(
+        'description' => 'The date when a team was given access to a specific node.',
+        'type' => 'int',
+        'not null' => TRUE,
+        'default' => 0,
+      ),
+    ),
+    'primary key' => array('content_id'),
+  );
+
+  return $schema;
+
+}
+
+
+/**
+ * Implements hook_uninstall()
+ * @TODO add install function code
+ */
+function teams_nodes_install(){
+
+
+}
+
+
+/**
+ * Implements hook_uninstall()
+ * @TODO add uninstall function code
+ */
+function teams_nodes_uninstall(){
+
+
+}

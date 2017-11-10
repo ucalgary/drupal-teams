@@ -1,0 +1,6 @@
+name = Teams
+description = Allow users within Drupal to co-own content within defined teams, and ensure that content owned by one team is not editable by a different team without permission.
+core = 7.x
+package = Teams
+
+dependencies[] = views

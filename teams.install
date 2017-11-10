@@ -1,0 +1,130 @@
+<?php
+
+/**
+ * Teams module schema, install, update and uninstall file
+ *
+ * @file
+ */
+
+/**
+ * Create database schema for Teams
+ *
+ * @return array
+ */
+function teams_schema() {
+
+  // Create the teams table to manage all Teams teams
+  $schema['teams_teams'] = [
+    'description' => 'The base table used to manage teams and their associations.',
+    'fields' => [
+      'team_id' => [
+        'description' => 'The primary identifier for a team.',
+        'type' => 'serial',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+      ],
+      'name' => [
+        'description' => 'The unique name of this team.',
+        'type' => 'varchar',
+        'length' => 100,
+        'not null' => TRUE,
+      ],
+      'description' => [
+        'description' => 'Description of team',
+        'type' => 'varchar',
+        'length' => 255,
+        'not null' => TRUE,
+      ],
+      'parent_id' => [
+        'description' => 'The parent team_id this team is associated with.',
+        'type' => 'int',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+        'default' => 0,
+      ],
+      'status' => [
+        'description' => 'The current team status, always set to Active by default.',
+        'type' => 'varchar',
+        'length' => 32,
+        'not null' => TRUE,
+        'default' => 'Active',
+      ],
+      'modified' => [
+        'description' => 'The last time the team record was updated.',
+        'type' => 'int',
+        'not null' => TRUE,
+        'default' => 0,
+      ],
+      'created' => [
+        'description' => 'The date when the team was created.',
+        'type' => 'int',
+        'not null' => TRUE,
+        'default' => 0,
+      ],
+    ],
+    'unique keys' => [
+      'name' => ['name'],
+    ],
+    'primary key' => ['team_id'],
+  ];
+
+  // Create the team users table used to manage associations between drupal users and Teams teams
+  $schema['teams_users'] = [
+    'description' => 'The table used to manage users associated to Teams teams.',
+    'fields' => [
+      'team_user_id' => [
+        'description' => 'The primary identifier for a user associated to a team.',
+        'type' => 'serial',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+      ],
+      'uid' => [
+        'description' => 'The users drupal user id (uid).',
+        'type' => 'int',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+      ],
+      'team_id' => [
+        'description' => 'The team id the user is associated to.',
+        'type' => 'int',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+      ],
+      'modified' => [
+        'description' => 'The last time the user team association was updated.',
+        'type' => 'int',
+        'not null' => TRUE,
+        'default' => 0,
+      ],
+      'created' => [
+        'description' => 'The date when the user was added to the team',
+        'type' => 'int',
+        'not null' => TRUE,
+        'default' => 0,
+      ],
+    ],
+    'primary key' => ['team_user_id'],
+  ];
+
+  return $schema;
+}
+
+/**
+ * Implements hook_uninstall()
+ *
+ * @TODO add install function code
+ */
+function teams_install() {
+
+
+}
+
+/**
+ * Implements hook_uninstall()
+ *
+ * @TODO add uninstall function code
+ */
+function teams_uninstall() {
+
+
+}

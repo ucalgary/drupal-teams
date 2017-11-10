@@ -1,0 +1,168 @@
+<?php
+
+/**
+ * Teams main module api
+ * Api functions
+ * - get teams
+ * - add Team
+ * - del Team
+ * - add user to Team
+ * - del user from Team
+ * - get user teams
+ * - get user permissions
+ *
+ * @file
+ */
+
+// Admin includes used to manage the backend admin options & interface
+require_once('includes/teams_menu.admin.inc');
+require_once('includes/teams_form.admin.inc');
+require_once('includes/teams_views.admin.inc');
+
+// Functional include files used to manage Teams module operations & permissions
+require_once('includes/teams_users.inc');
+
+
+/**
+ * Logged in user teams
+ * Get the list of teams the logged in user has access for
+ *
+ * @return array
+ */
+function teams_get_user_teams(){
+
+  // User teams
+  if(isset($_SESSION['teams']['teams'])){
+    return $_SESSION['teams']['teams'];
+  }else{
+    return NULL;
+  }
+
+}
+
+
+/**
+ * Check access permissions api Function
+ * provide an array of teams to check against the users team session for correct access permissions
+ *
+ * @return boolean
+ */
+function teams_has_permission($teams_access) {
+
+  // Set default permission to FALSE
+  $permission = false;
+
+  // Get current user teams
+  $user_teams = teams_get_user_teams();
+
+  // Get ids for user teams in seperate array
+  $user_teams_ids = array();
+  foreach($user_teams as $user_team){
+    array_push($user_teams_ids, $user_team['team_id']);
+  }
+
+  // Check user has permission
+  foreach($teams_access as $team){
+
+    // Check users_teams array againts node team access array
+    if(in_array($team->team_id, $user_teams_ids)){
+      $permission = true;
+      break;
+    }
+
+  }
+
+  return $permission;
+
+}
+
+
+/**
+ * Display and traverse teams in an adjacency hierarchical structure
+ * provide hierarchical display based off teams array supplied in views, or any other query returning teams as an array
+ *
+ * @param array $teams
+ * @param integer $parent_id
+ * @param integer $level
+ *
+ * @return array
+ */
+function teams_order_teams($teams, $parent_id = 0, $level = 0) {
+
+  // Global return array used to give access while looping through recrusive function
+  global $return_array;
+
+  // Loop through each team for display and find parents
+  foreach ($teams as $team) {
+
+    // Check for current team hierarchy based off parent_id supplied in the function
+    // This is needed to diplay the current parent_id team name along with all team children in the return array
+    if ($team['team_id'] == $parent_id) {
+
+      // Indent for team name hierarchy and add to return array
+      if($level > 1){
+        $return_array[$team['team_id']]['name'] = str_repeat('<div class="indentation"></div>', $level - 1) . $team['name'];
+      }else{
+        $return_array[$team['team_id']]['name'] = $team['name'];
+      }
+
+      // Add team information into return array
+      $return_array[$team['team_id']]['team_id'] = $team['team_id'];
+      $return_array[$team['team_id']]['parent_id'] = $team['parent_id'];
+      $return_array[$team['team_id']]['status'] = $team['status'];
+
+    }
+
+    // Recall function to find child to parent relationships
+    if ($team['parent_id'] == $parent_id) {
+      teams_order_teams($teams, $team['team_id'], $level + 1);
+    }
+
+  }
+
+  return $return_array;
+
+}
+
+
+/**
+ * Get all teams in ordered hierarchical structure
+ * By default teams_get_teams will return all teams, by providing a params you may get specify
+ * the team_td to start with or the status (all, active, closed)
+ * @param string $team_id
+ * @param string $status
+ *
+ * @return array
+ */
+function teams_get_teams($team_id = 0, $status = 'all'){
+
+  // Create condition for all status in query
+  if ($status === 'all') {
+    $status = '%';
+  }
+
+  // Query teams
+  $teams = db_select('teams_teams', 'tot')
+    ->fields('tot', ['team_id', 'name', 'description', 'parent_id', 'status', 'modified', 'created'])
+    ->condition('status', $status, 'LIKE')
+    ->execute()
+    ->fetchAll();
+
+  // Check that at least one team has been returned
+  if(isset($teams)){
+
+  // Convert objects to Multi-dimensional array for team order function
+  $teams = json_decode(json_encode($teams), true);
+
+  // Order teams in hierarchical structure
+  $teams = teams_order_teams($teams, $team_id);
+
+  return $teams;
+
+  }
+  // If no teams exist return null
+  else{
+    return NULL;
+  }
+
+}
